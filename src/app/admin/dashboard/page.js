@@ -1,7 +1,27 @@
-export default function Dashboard() {
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+
+export default async function Dashboard() {
+    const cookieStore = await cookies()
+    const supabase = createServerComponentClient({ cookies: () => cookieStore })
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+        redirect('/login')
+    }
+
+    const userEmail = user?.email || 'Unknown User'
+
     return (
       <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <div className="text-sm text-gray-600">
+            Logged in as: {userEmail}
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold">Total Inventory</h2>
@@ -18,4 +38,4 @@ export default function Dashboard() {
         </div>
       </div>
     )
-  }
+}
