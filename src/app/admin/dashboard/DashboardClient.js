@@ -2,13 +2,46 @@
 
 import { useState } from 'react'
 import AddVehicleModal from '@/app/components/AddVehicleModal'
+import EditVehicleModal from '@/app/components/EditVehicleModal'
+import { supabase } from '@/lib/supabase'
 
 export default function DashboardClient({ initialInventory, userEmail }) {
   const [inventory, setInventory] = useState(initialInventory)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [selectedVehicle, setSelectedVehicle] = useState(null)
 
   const handleVehicleAdded = (newVehicle) => {
     setInventory([newVehicle, ...inventory])
+  }
+
+  const handleEditVehicle = (vehicle) => {
+    setSelectedVehicle(vehicle)
+    setIsEditModalOpen(true)
+  }
+
+  const handleVehicleUpdated = (updatedVehicle) => {
+    setInventory(inventory.map(vehicle => 
+      vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle
+    ))
+  }
+
+  const handleDeleteVehicle = async (vehicleId) => {
+    if (!confirm('Are you sure you want to delete this vehicle?')) return
+
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .delete()
+        .eq('id', vehicleId)
+
+      if (error) throw error
+
+      setInventory(inventory.filter(vehicle => vehicle.id !== vehicleId))
+    } catch (error) {
+      console.error('Error deleting vehicle:', error)
+      alert('Failed to delete vehicle')
+    }
   }
 
   return (
@@ -44,7 +77,7 @@ export default function DashboardClient({ initialInventory, userEmail }) {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Vehicle List</h2>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsAddModalOpen(true)}
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Add Vehicle
@@ -58,7 +91,6 @@ export default function DashboardClient({ initialInventory, userEmail }) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse bg-white shadow rounded-lg">
-              {/* Your existing table headers */}
               <thead>
                 <tr className="bg-gray-50">
                   <th className="border p-2 text-left">Vehicle</th>
@@ -100,10 +132,16 @@ export default function DashboardClient({ initialInventory, userEmail }) {
                       </span>
                     </td>
                     <td className="border p-2 text-center">
-                      <button className="text-blue-500 hover:text-blue-700 mr-2">
+                      <button 
+                        onClick={() => handleEditVehicle(vehicle)}
+                        className="text-blue-500 hover:text-blue-700 mr-2"
+                      >
                         Edit
                       </button>
-                      <button className="text-red-500 hover:text-red-700">
+                      <button 
+                        onClick={() => handleDeleteVehicle(vehicle.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
                         Delete
                       </button>
                     </td>
@@ -116,10 +154,19 @@ export default function DashboardClient({ initialInventory, userEmail }) {
       </div>
 
       <AddVehicleModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)}
         onVehicleAdded={handleVehicleAdded}
       />
+
+      {selectedVehicle && (
+        <EditVehicleModal 
+          isOpen={isEditModalOpen} 
+          onClose={() => setIsEditModalOpen(false)}
+          vehicle={selectedVehicle}
+          onVehicleUpdated={handleVehicleUpdated}
+        />
+      )}
     </div>
   )
 }
