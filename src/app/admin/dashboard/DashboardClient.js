@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import AddVehicleModal from '@/app/components/AddVehicleModal'
 import EditVehicleModal from '@/app/components/EditVehicleModal'
 import { supabase } from '@/lib/supabase'
@@ -10,6 +11,8 @@ export default function DashboardClient({ initialInventory, userEmail }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedVehicle, setSelectedVehicle] = useState(null)
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false)
+  const [currentVehicleImages, setCurrentVehicleImages] = useState([])
 
   const handleVehicleAdded = (newVehicle) => {
     setInventory([newVehicle, ...inventory])
@@ -42,6 +45,11 @@ export default function DashboardClient({ initialInventory, userEmail }) {
       console.error('Error deleting vehicle:', error)
       alert('Failed to delete vehicle')
     }
+  }
+
+  const openImageModal = (images) => {
+    setCurrentVehicleImages(images)
+    setIsImageModalOpen(true)
   }
 
   return (
@@ -93,6 +101,7 @@ export default function DashboardClient({ initialInventory, userEmail }) {
             <table className="w-full border-collapse bg-white shadow rounded-lg">
               <thead>
                 <tr className="bg-gray-50">
+                  <th className="border p-2 text-left">Images</th>
                   <th className="border p-2 text-left">Vehicle</th>
                   <th className="border p-2 text-left">VIN</th>
                   <th className="border p-2 text-right">Year</th>
@@ -105,6 +114,33 @@ export default function DashboardClient({ initialInventory, userEmail }) {
               <tbody>
                 {inventory.map((vehicle) => (
                   <tr key={vehicle.id} className="hover:bg-gray-50">
+                    <td className="border p-2">
+                      {vehicle.image_urls && vehicle.image_urls.length > 0 ? (
+                        <div className="flex space-x-1">
+                          {vehicle.image_urls.slice(0, 3).map((imageUrl, index) => (
+                            <Image 
+                              key={index}
+                              src={imageUrl} 
+                              alt={`Vehicle image ${index + 1}`} 
+                              width={50} 
+                              height={50} 
+                              className="object-cover rounded cursor-pointer"
+                              onClick={() => openImageModal(vehicle.image_urls)}
+                            />
+                          ))}
+                          {vehicle.image_urls.length > 3 && (
+                            <div 
+                              className="w-[50px] h-[50px] bg-gray-200 rounded flex items-center justify-center cursor-pointer"
+                              onClick={() => openImageModal(vehicle.image_urls)}
+                            >
+                              +{vehicle.image_urls.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">No images</span>
+                      )}
+                    </td>
                     <td className="border p-2">
                       {vehicle.make} {vehicle.model}
                     </td>
@@ -153,6 +189,36 @@ export default function DashboardClient({ initialInventory, userEmail }) {
         )}
       </div>
 
+      {/* Image Modal */}
+      {isImageModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Vehicle Images</h2>
+              <button 
+                onClick={() => setIsImageModalOpen(false)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {currentVehicleImages.map((imageUrl, index) => (
+                <Image 
+                  key={index}
+                  src={imageUrl} 
+                  alt={`Vehicle image ${index + 1}`} 
+                  width={300} 
+                  height={300} 
+                  className="object-cover rounded"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle Modals */}
       <AddVehicleModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)}

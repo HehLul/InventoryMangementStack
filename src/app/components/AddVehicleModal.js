@@ -1,8 +1,8 @@
-// src/app/components/AddVehicleModal.js
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, uploadVehicleImage } from '@/lib/supabase'
+import Image from 'next/image'
 
 export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded }) {
   const [vehicleData, setVehicleData] = useState({
@@ -15,6 +15,18 @@ export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded }) {
     selling_price: '',
     status: 'available'
   })
+  
+  const [images, setImages] = useState([])
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files)
+    setImages([...images, ...files])
+  }
+
+  const handleRemoveImage = (index) => {
+    const newImages = images.filter((_, i) => i !== index)
+    setImages(newImages)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,7 +38,8 @@ export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded }) {
     }
 
     try {
-      const { data, error } = await supabase
+      // Insert vehicle first to get ID for image upload
+      const { data: vehicleInsertData, error: vehicleInsertError } = await supabase
         .from('vehicles')
         .insert({
           ...vehicleData,
@@ -36,9 +49,16 @@ export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded }) {
         })
         .select()
 
-      if (error) throw error
+      if (vehicleInsertError) throw vehicleInsertError
 
-      onVehicleAdded(data[0])
+      const newVehicle = vehicleInsertData[0]
+
+      // Upload images
+      const imageUrls = await Promise.all(
+        images.map(file => uploadVehicleImage(file, newVehicle.id))
+      )
+
+      onVehicleAdded(newVehicle)
       onClose()
     } catch (error) {
       console.error('Error adding vehicle:', error)
@@ -111,6 +131,42 @@ export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded }) {
             className="w-full p-2 border rounded"
             step="0.01"
           />
+          
+          {/* Image Upload Section */}
+          <div>
+            <label className="block mb-2">Vehicle Images</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="w-full p-2 border rounded"
+            />
+            
+            {/* Image Preview */}
+            <div className="flex flex-wrap mt-2 gap-2">
+              {images.map((image, index) => (
+                <div key={index} className="relative">
+                  <Image 
+  src={URL.createObjectURL(image)} 
+  alt={`New vehicle image ${index + 1}`} 
+  width={100} 
+  height={100}
+  style={{ width: 'auto', height: 'auto' }} 
+  className="object-cover rounded"
+/>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(index)}
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-2">
             <button 
               type="button" 

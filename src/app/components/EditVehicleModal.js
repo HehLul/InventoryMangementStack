@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, uploadVehicleImage, deleteVehicleImage } from '@/lib/supabase'
+import Image from 'next/image'
 
 export default function EditVehicleModal({ 
   isOpen, 
@@ -17,24 +18,50 @@ export default function EditVehicleModal({
     color: '',
     mileage: '',
     selling_price: '',
-    status: 'available'
+    status: 'available',
+    image_urls: []
   })
+  
+  const [newImages, setNewImages] = useState([])
 
   // Populate form when vehicle prop changes
   useEffect(() => {
     if (vehicle) {
       setVehicleData({
-        vin: vehicle.vin || '',
-        make: vehicle.make || '',
-        model: vehicle.model || '',
+        ...vehicle,
         year: vehicle.year ? vehicle.year.toString() : '',
-        color: vehicle.color || '',
         mileage: vehicle.mileage ? vehicle.mileage.toString() : '',
         selling_price: vehicle.selling_price ? vehicle.selling_price.toString() : '',
-        status: vehicle.status || 'available'
+        image_urls: vehicle.image_urls || []
       })
+      // Reset new images when vehicle changes
+      setNewImages([])
     }
   }, [vehicle])
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files)
+    setNewImages([...newImages, ...files])
+  }
+
+  const handleRemoveNewImage = (index) => {
+    const updatedNewImages = newImages.filter((_, i) => i !== index)
+    setNewImages(updatedNewImages)
+  }
+
+  const handleRemoveExistingImage = async (imageUrl) => {
+    try {
+      const success = await deleteVehicleImage(imageUrl, vehicle.id)
+      if (success) {
+        setVehicleData(prev => ({
+          ...prev,
+          image_urls: prev.image_urls.filter(url => url !== imageUrl)
+        }))
+      }
+    } catch (error) {
+      console.error('Error removing image:', error)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -46,7 +73,8 @@ export default function EditVehicleModal({
     }
 
     try {
-      const { data, error } = await supabase
+      // Update vehicle details
+      const { data: vehicleUpdateData, error: vehicleUpdateError } = await supabase
         .from('vehicles')
         .update({
           ...vehicleData,
@@ -57,9 +85,20 @@ export default function EditVehicleModal({
         .eq('id', vehicle.id)
         .select()
 
-      if (error) throw error
+      if (vehicleUpdateError) throw vehicleUpdateError
 
-      onVehicleUpdated(data[0])
+      // Upload new images
+      const newImageUrls = await Promise.all(
+        newImages.map(file => uploadVehicleImage(file, vehicle.id))
+      )
+
+      // Combine existing and new image URLs
+      const updatedVehicle = {
+        ...vehicleUpdateData[0],
+        image_urls: [...vehicleData.image_urls, ...newImageUrls.filter(url => url)]
+      }
+
+      onVehicleUpdated(updatedVehicle)
       onClose()
     } catch (error) {
       console.error('Error updating vehicle:', error)
@@ -143,6 +182,61 @@ export default function EditVehicleModal({
               <option value="reserved">Reserved</option>
             </select>
           </div>
+
+          {/* Image Upload and Preview Section */}
+          <div>
+            <label className="block mb-2">Vehicle Images</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="w-full p-2 border rounded"
+            />
+            
+            {/* Existing Images */}
+            <div className="flex flex-wrap mt-2 gap-2">
+              {vehicleData.image_urls.map((imageUrl, index) => (
+                <div key={imageUrl} className="relative">
+                  <Image 
+                    src={imageUrl} 
+                    alt={`Existing vehicle image ${index + 1}`} 
+                    width={100} 
+                    height={100} 
+                    className="object-cover rounded"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveExistingImage(imageUrl)}
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+
+              {/* New Images Preview */}
+              {newImages.map((image, index) => (
+                <div key={`new-${index}`} className="relative">
+                  <Image 
+                    src={URL.createObjectURL(image)} 
+                    alt={`New vehicle image ${index + 1}`} 
+                    width={100} 
+                    height={100} 
+                    className="object-cover rounded"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveNewImage(index)}
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-2">
             <button 
               type="button" 
