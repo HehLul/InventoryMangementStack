@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import AddVehicleModal from '@/app/components/AddVehicleModal'
 import EditVehicleModal from '@/app/components/EditVehicleModal'
@@ -13,6 +13,15 @@ export default function DashboardClient({ initialInventory, userEmail }) {
   const [selectedVehicle, setSelectedVehicle] = useState(null)
   const [isImageModalOpen, setIsImageModalOpen] = useState(false)
   const [currentVehicleImages, setCurrentVehicleImages] = useState([])
+  const [isGuest, setIsGuest] = useState(false)
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsGuest(user?.email === 'guest@inventoryapp.com')
+    }
+    checkUserRole()
+  }, [])
 
   const handleVehicleAdded = (newVehicle) => {
     setInventory([newVehicle, ...inventory])
@@ -84,12 +93,14 @@ export default function DashboardClient({ initialInventory, userEmail }) {
       <div className="mt-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Vehicle List</h2>
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Add Vehicle
-          </button>
+          {!isGuest && (
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Add Vehicle
+            </button>
+          )}
         </div>
         
         {inventory.length === 0 ? (
@@ -108,7 +119,9 @@ export default function DashboardClient({ initialInventory, userEmail }) {
                   <th className="border p-2 text-right">Mileage</th>
                   <th className="border p-2 text-right">Price</th>
                   <th className="border p-2 text-center">Status</th>
-                  <th className="border p-2 text-center">Actions</th>
+                  {!isGuest && (
+                    <th className="border p-2 text-center">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -167,20 +180,22 @@ export default function DashboardClient({ initialInventory, userEmail }) {
                         {vehicle.status}
                       </span>
                     </td>
-                    <td className="border p-2 text-center">
-                      <button 
-                        onClick={() => handleEditVehicle(vehicle)}
-                        className="text-blue-500 hover:text-blue-700 mr-2"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteVehicle(vehicle.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    {!isGuest && (
+                      <td className="border p-2 text-center">
+                        <button 
+                          onClick={() => handleEditVehicle(vehicle)}
+                          className="text-blue-500 hover:text-blue-700 mr-2"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteVehicle(vehicle.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -219,19 +234,23 @@ export default function DashboardClient({ initialInventory, userEmail }) {
       )}
 
       {/* Vehicle Modals */}
-      <AddVehicleModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)}
-        onVehicleAdded={handleVehicleAdded}
-      />
+      {!isGuest && (
+        <>
+          <AddVehicleModal 
+            isOpen={isAddModalOpen} 
+            onClose={() => setIsAddModalOpen(false)}
+            onVehicleAdded={handleVehicleAdded}
+          />
 
-      {selectedVehicle && (
-        <EditVehicleModal 
-          isOpen={isEditModalOpen} 
-          onClose={() => setIsEditModalOpen(false)}
-          vehicle={selectedVehicle}
-          onVehicleUpdated={handleVehicleUpdated}
-        />
+          {selectedVehicle && (
+            <EditVehicleModal 
+              isOpen={isEditModalOpen} 
+              onClose={() => setIsEditModalOpen(false)}
+              vehicle={selectedVehicle}
+              onVehicleUpdated={handleVehicleUpdated}
+            />
+          )}
+        </>
       )}
     </div>
   )
