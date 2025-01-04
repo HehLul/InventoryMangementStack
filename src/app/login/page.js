@@ -15,35 +15,53 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
 
-    // If these credentials match, it's a guest login
-    if (email === 'guest@inventoryapp.com' && password === 'GuestViewOnly2024!') {
-      try {
+    try {
+      // Specific handling for guest login
+      if (email === 'guest@inventoryapp.com' && password === 'GuestViewOnly2024!') {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
+          email: 'guest@inventoryapp.com',
+          password: 'GuestViewOnly2024!'
         })
 
-        if (error) throw error
+        console.log('Guest login detailed response:', { 
+          data: {
+            user: data?.user ? 'User exists' : 'No user',
+            session: data?.session ? 'Session exists' : 'No session'
+          }, 
+          error 
+        })
+
+        if (error) {
+          console.error('Detailed guest login error:', {
+            message: error.message,
+            status: error.status,
+            code: error.code,
+            details: error.details
+          })
+          setError(error.message || 'Guest login failed')
+          return
+        }
 
         router.push('/admin/dashboard')
-      } catch (err) {
-        setError(err.message)
+        return
       }
-      return
-    }
 
-    // Regular user login
-    try {
+      // Regular user login
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Login error:', error)
+        setError(error.message || 'Login failed')
+        return
+      }
 
       router.push('/admin/dashboard')
     } catch (err) {
-      setError(err.message)
+      console.error('Unexpected login error:', err)
+      setError('An unexpected error occurred')
     }
   }
 
@@ -56,6 +74,12 @@ export default function LoginPage() {
           </h2>
         </div>
         
+        {error && (
+          <div className="text-red-500 text-center mb-4">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
@@ -86,23 +110,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
-            </div>
-          )}
-
-          <div className="flex flex-col space-y-4">
+          <div>
             <button
               type="submit"
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Sign in
             </button>
-            
-            <div className="text-center text-sm text-gray-600">
-              Guest Login: email: guest@inventoryapp.com, password: GuestViewOnly2024!
-            </div>
           </div>
         </form>
       </div>

@@ -1,8 +1,14 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
 export default function Home() {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Welcome to Inventory Management</h2>
-      {/* Add dashboard content here */}
-    </div>
-  )
+  const router = useRouter()
+
+  useEffect(() => {
+    router.push('/login')
+  }, [router])
+
+  return null
 }
